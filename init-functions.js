@@ -1189,6 +1189,150 @@ function initTeamCardHoverAnimation(root = document) {
   });
 }
 
+function initBunnyPlayer(root = document) {
+  const players = root.querySelectorAll('[data-bunny-player-init]');
+  if (!players.length) return;
+
+  players.forEach((player) => {
+    const video = player.querySelector('video');
+    const src   = player.getAttribute('data-player-src');
+    if (!video || !src) return;
+
+    // 🧹 Reset alte Instanzen (Swup-kompatibel)
+    if (player._bunnyHandlers) {
+      player._bunnyHandlers.forEach(({ el, type, fn }) =>
+        el.removeEventListener(type, fn)
+      );
+    }
+    player._bunnyHandlers = [];
+
+    // ---------------------------
+    // ⚙️ Grundzustand
+    // ---------------------------
+    video.src = src;
+    video.autoplay = true;
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('muted', '');
+    player.setAttribute('data-player-muted', 'true');
+    player.setAttribute('data-player-status', 'playing');
+    player.setAttribute('data-player-expanded', 'false');
+    player.setAttribute('data-player-controls', 'hidden');
+
+    // Sicherstellen, dass Video läuft
+    video.play().catch(() => {});
+
+    // ---------------------------
+    // ✨ Expand / Collapse Animation
+    // ---------------------------
+
+    const expandToFullscreen = () => {
+      if (player.getAttribute('data-player-expanded') === 'true') return;
+      player.setAttribute('data-player-expanded', 'true');
+      player.style.zIndex = 1020;
+
+      // 1️⃣ Smooth transition auf viewport-Größe
+      gsap.to(player, {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        duration: 0.6,
+        ease: 'power3.inOut',
+        onStart: () => {
+          // Soft Fade auf ersten Frame
+          gsap.to(video, { autoAlpha: 0, duration: 0.2 });
+          video.pause();
+          video.currentTime = 0;
+        },
+        onComplete: () => {
+          // Video mit Sound neu starten
+          video.muted = false;
+          player.setAttribute('data-player-muted', 'false');
+          player.setAttribute('data-player-controls', 'visible');
+          gsap.to(video, { autoAlpha: 1, duration: 0.4 });
+          video.play().catch(() => {});
+        },
+      });
+    };
+
+    const collapseToBackground = () => {
+      if (player.getAttribute('data-player-expanded') === 'false') return;
+      player.setAttribute('data-player-expanded', 'false');
+      player.setAttribute('data-player-controls', 'hidden');
+
+      gsap.to(video, { autoAlpha: 0.6, duration: 0.3 });
+      video.pause();
+      video.currentTime = 0;
+
+      gsap.to(player, {
+        position: 'relative',
+        width: '',
+        height: '',
+        top: '',
+        left: '',
+        zIndex: '',
+        duration: 0.6,
+        ease: 'power3.inOut',
+        onComplete: () => {
+          video.muted = true;
+          player.setAttribute('data-player-muted', 'true');
+          video.play().catch(() => {});
+          gsap.to(video, { autoAlpha: 1, duration: 0.4 });
+        },
+      });
+    };
+
+    // ---------------------------
+    // 🎛️ Controls Handling
+    // ---------------------------
+    const onControlClick = (e) => {
+      const btn = e.target.closest('[data-player-control]');
+      if (!btn) return;
+      const type = btn.getAttribute('data-player-control');
+      if (type === 'playpause') {
+        if (video.paused) video.play();
+        else video.pause();
+      } else if (type === 'mute') {
+        video.muted = !video.muted;
+        player.setAttribute('data-player-muted', video.muted ? 'true' : 'false');
+      } else if (type === 'fullscreen') {
+        // 👉 custom expand/collapse statt native fullscreen
+        if (player.getAttribute('data-player-expanded') === 'true') collapseToBackground();
+        else expandToFullscreen();
+      }
+    };
+    player.addEventListener('click', onControlClick);
+    player._bunnyHandlers.push({ el: player, type: 'click', fn: onControlClick });
+
+    // ---------------------------
+    // 🎬 Click-to-Expand
+    // ---------------------------
+    const onVideoClick = (e) => {
+      const isControl = e.target.closest('[data-player-control]');
+      if (isControl) return;
+      if (player.getAttribute('data-player-expanded') === 'true') return;
+      expandToFullscreen();
+    };
+    video.addEventListener('click', onVideoClick);
+    player._bunnyHandlers.push({ el: video, type: 'click', fn: onVideoClick });
+
+    // ---------------------------
+    // ⏯️ Status Updates
+    // ---------------------------
+    const updateStatus = () => {
+      player.setAttribute('data-player-status', video.paused ? 'paused' : 'playing');
+    };
+    video.addEventListener('play', updateStatus);
+    video.addEventListener('pause', updateStatus);
+    player._bunnyHandlers.push({ el: video, type: 'play', fn: updateStatus });
+    player._bunnyHandlers.push({ el: video, type: 'pause', fn: updateStatus });
+  });
+}
+
 // ====== ALLE MODULE REGISTRIEREN ======
 attachReinit(initThemeToggle);
 attachReinit(initDirectionalButtonHover);
