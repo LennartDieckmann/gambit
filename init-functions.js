@@ -1,4 +1,3 @@
-<script>
 /* ================== HEADER ================== */
 class PerformantHeaderHide {
   constructor(headerSelector = '.header') {
@@ -56,9 +55,6 @@ class PerformantHeaderHide {
     }
   }
 }
-</script>
-
-<script>
 /* ============================================
    INIT-FUNKTIONEN (idempotent, Swup-kompatibel)
    ============================================ */
@@ -1358,4 +1354,3 @@ document.addEventListener("DOMContentLoaded", ()=>{
   initHeaderController();
   window.reinitPage(document);
 });
-</script>
